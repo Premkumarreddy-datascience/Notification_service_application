@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notification_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/notification_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      - db
+      - rabbitmq
+
+  worker:
+    build: ./worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/notification_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - SMTP_SERVER=smtp.example.com
+      - SMTP_PORT=587
+      - SMTP_USER=user@example.com
+      - SMTP_PASS=password
+    depends_on:
+      - db
+      - rabbitmq
+
+volumes:
+  rabbitmq_data:
+  postgres_data:
